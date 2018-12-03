@@ -1,6 +1,5 @@
-import requests, json, click, sys, urllib3
+import requests, json, click, urllib3
 urllib3.disable_warnings()
-#monitor s3 bucket usage plugin for nagios
 
 def build_api_path(ip, api):
     #builds the api path, adds the host ip with
@@ -45,22 +44,29 @@ def return_bucket_usage(json_resp, bucket_name):
         if entry['name'] == bucket_name:
             return entry['dataBytes']
 
+def calc_percentage(value):
+    #calculate warn/crit value percentages
+    value = float(value)
+    value = value/100
+    return value
+
 def convert_bytes_to_GB(input):
-    #converts bytes to GB
-    output = input/1024/1024/1024
-    return output
+    #converts bytes to storage GB
+    output = input/1000/1000/1000
+    return int(output)
 
 @click.command()
 @click.option('--tenant', '-t', help='Tenant name')
 @click.option('--bucket', '-b', help='Tenant bucket name')
 @click.option('--hostname', '-h', help='host ip')
+@click.option('--maxspace', '-m', help='Max bucket space in GB')
 @click.option('--warn', '-w', type=float, help='Warning threshold')
 @click.option('--crit', '-c', type=float, help='Crit threshold')
-@click.option('--username', '-u', help='Username' )
-@click.option('--password', '-p', help='Password' )
-def main(tenant, bucket, hostname, warn, crit, username, password):
+@click.option('--username', '-u', help='Username')
+@click.option('--password', '-p', help='Password')
+def main(tenant, bucket, hostname, maxspace, warn, crit, username, password):
     HEADERS={'Content-Type': 'application/json',
-    'Accept': 'application/json',}
+    'Accept': 'application/json'}
     API='/api/v2'
     API_TOKEN_PATH = API + '/authorize'
     API_ID_PATH = API + '/grid/accounts'
@@ -77,16 +83,26 @@ def main(tenant, bucket, hostname, warn, crit, username, password):
     bucket_json = req_get(bucket_api, HEADERS, cookies)
     bucket_usage_value = return_bucket_usage(bucket_json, bucket)
     gig_usage = convert_bytes_to_GB(bucket_usage_value)
-    if gig_usage <= warn:
-        print('normal')
+    maxspace = int(maxspace)
+    warn_decimal = calc_percentage(warn)
+    crit_decimal = calc_percentage(crit)
+    warn_usage = maxspace * warn_decimal
+    crit_usage = maxspace * crit_decimal
+    space_free = maxspace - gig_usage
+    bucket_percent_free = (float(space_free)/float(maxspace))*100
+    bucket_percent_free = round(bucket_percent_free, 1)
+
+    if gig_usage <= warn_usage:
+        print('OK - {}GB in use - {}% bucket space remaining | bucket_space_used={}GB;{};{}'.format(gig_usage, bucket_percent_free, gig_usage, warn, crit))
         exit(0)
-    elif gig_usage >= warn and gig_usage <= crit:
-        print('warning')
+    elif gig_usage >= warn_usage and gig_usage <= crit_usage:
+        print('WARN - {}GB in use - {}% bucket space remaining | bucket_space_used={}GB;{};{}'.format(gig_usage, bucket_percent_free, gig_usage, warn, crit))
         exit(1)
-    elif gig_usage >= crit:
-        print('critical')
+    elif gig_usage >= crit_usage:
+        print('CRIT - {}GB in use - {}% bucket space remaining | bucket_space_used={}GB;{};{}'.format(gig_usage, bucket_percent_free, gig_usage, warn, crit))
         exit(2)
     else:
+        print('Value Unknown')
         exit(3)
 
 
