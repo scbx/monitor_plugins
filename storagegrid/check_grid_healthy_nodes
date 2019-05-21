@@ -1,0 +1,32 @@
+from functions import *
+from variables import *
+
+@click.command()
+@click.option('--hostname', '-h', help='host ip')
+@click.option('--warn', '-w', type=float, help='Warning threshold percentage')
+@click.option('--crit', '-c', type=float, help='Crit threshold percentage')
+@click.option('--username', '-u', help='Username' )
+@click.option('--password', '-p', help='Password' )
+@click.option('--nodes', '-n', help='Number of Nodes')
+def main(hostname, warn, crit, username, password, nodes):
+    API_ID_PATH = API + '/grid/health'
+
+    hostname = PROT + str(hostname)
+    data = build_api_data(username, password)
+    auth_api = build_api_path(hostname, API_TOKEN_PATH)
+    id_api = build_api_path(hostname, API_ID_PATH)
+    cookies = req_post(auth_api, HEADERS, data).cookies
+    
+    node_status = req_get(id_api, HEADERS, cookies).text
+    node_status = ast.literal_eval(node_status)
+    if node_status['data']['nodes']['unknown'] != 0:
+        print('CRIT - {} Nodes in unknown state'.format(nodes_unknown))
+        exit(2)
+    elif node_status['data']['nodes']['administratively-down'] != 0 or node_status['data']['nodes']['connected'] != int(nodes):
+        print('WARN - Grid Nodes not in expected state, ensure that all nodes are up')
+        exit(1)
+    else:
+        print('Grid Nodes seem to be healthy')
+        
+        
+main()
