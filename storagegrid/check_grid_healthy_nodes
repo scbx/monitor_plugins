@@ -20,13 +20,17 @@ def main(hostname, warn, crit, username, password, nodes):
     node_status = req_get(id_api, HEADERS, cookies).text
     node_status = ast.literal_eval(node_status)
     if node_status['data']['nodes']['unknown'] != 0:
-        print('CRIT - {} Nodes in unknown state'.format(nodes_unknown))
+        print('CRIT -  Nodes in unknown state')
         exit(2)
-    elif node_status['data']['nodes']['administratively-down'] != 0 or node_status['data']['nodes']['connected'] != int(nodes):
+    elif node_status['data']['nodes']['administratively-down'] != 0:
         print('WARN - Grid Nodes not in expected state, ensure that all nodes are up')
+        exit(1)
+    elif node_status['data']['nodes']['connected'] != int(nodes):
+        print('WARN - Grid Nodes not equal to expected nodes, check storagegrid cluster')
         exit(1)
     else:
         print('Grid Nodes seem to be healthy')
+        exit(0)
         
         
 main()
