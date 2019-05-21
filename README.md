@@ -1,4 +1,5 @@
 # monitor_plugins
 
-Nagios plugin used to monitor s3 bucket usage
-using click to provide options.
+Nagios plugins used to monitor rest apis on various technologies,
+using click to provide options / variable inputs.
+
