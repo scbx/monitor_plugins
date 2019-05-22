@@ -1,0 +1,43 @@
+from functions import *
+from variables import *
+
+@click.command()
+@click.option('--hostname', '-h', help='host ip')
+@click.option('--warn', '-w', type=float, help='Warning threshold percentage')
+@click.option('--crit', '-c', type=float, help='Crit threshold percentage')
+@click.option('--username', '-u', help='Username' )
+@click.option('--password', '-p', help='Password' )
+def main(hostname, warn, crit, username, password):
+    API_ID_PATH = API + '/grid/health'
+
+    hostname = PROT + str(hostname)
+    data = build_api_data(username, password)
+    auth_api = build_api_path(hostname, API_TOKEN_PATH)
+    id_api = build_api_path(hostname, API_ID_PATH)
+    cookies = req_post(auth_api, HEADERS, data).cookies
+
+    node_status = req_get(id_api, HEADERS, cookies).text
+    node_status = ast.literal_eval(node_status)
+    node_alarms = node_status['data']['alarms']
+    print(node_alarms)
+    if node_alarms['critical'] != 0:
+        print('CRIT - New Critical Alarm - Check SG cluster')
+        exit(2)
+    elif node_alarms['major'] != 0:
+        print('CRIT - New Major Alarm - Check SG cluster')
+        exit(2)
+    elif node_alarms['minor'] != 0:
+        print('WARN - New Minor Alarm - Check SG cluster')
+        exit(1)
+    elif node_alarms['minor'] != 0:
+        print('WARN - New Minor Alarm - Check SG cluster')
+        exit(1)
+    elif node_alarms['notice'] >= 2:
+        print('WARN - Notice Alarms growing - Check SG cluster')
+        exit(1)
+    else:
+        print('OK - Cluster Alarms clear')
+        exit(0)
+
+
+main()
